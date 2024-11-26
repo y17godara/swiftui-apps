@@ -5,6 +5,7 @@ extension View {
     func hidden(_ shouldHide: Bool) -> some View {
         opacity(shouldHide ? 0 : 1)
     }
+    
     @ViewBuilder func isHidden(_ hidden: Bool, remove: Bool = false) -> some View {
         if hidden {
             if !remove {
@@ -15,6 +16,62 @@ extension View {
         }
     }
 }
+
+struct WeatherView: View {
+    let day: String
+    let icon: String
+    let temp: String
+    
+    var body: some View {
+        VStack {
+            Text("\(day.prefix(3))")
+                .font(.headline)
+            Image(systemName: icon)
+                .renderingMode(.original)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 40, height: 40)
+            Text(temp)
+                .font(.subheadline)
+                .contentShape(Rectangle())
+        }
+    }
+}
+
+//struct AdaptiveStack<Content: View>: View {
+//    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+//    let content: () -> Content
+//    let defaultOrientation: Orientation
+//
+//    enum Orientation {
+//        case vertical
+//        case horizontal
+//    }
+//
+//    init(
+//        defaultOrientation: Orientation = .vertical,
+//        @ViewBuilder content: @escaping () -> Content
+//    ) {
+//        self.defaultOrientation = defaultOrientation
+//        self.content = content
+//    }
+//
+//    var body: some View {
+//        Group {
+//            if horizontalSizeClass == .compact {
+//                // When compact (portrait), use the default orientation
+//                defaultOrientation == .vertical ?
+//                    AnyView(VStack(alignment: .center, spacing: 60) { content() }) :
+//                    AnyView(HStack(alignment: .center, spacing: 60) { content() })
+//            } else {
+//                // When regular (landscape), use the opposite of default
+//                defaultOrientation == .vertical ?
+//                    AnyView(HStack(alignment: .center, spacing: 60) { content() }) :
+//                    AnyView(VStack(alignment: .center, spacing: 60) { content() })
+//            }
+//        }
+//    }
+//}
 
 struct ContentView: View {
     let weeklyForecast = [
@@ -43,7 +100,7 @@ struct ContentView: View {
     }
     
     var body: some View {
-        ZStack {
+        ZStack(alignment: isLandscape ? .leading : .top) {
             LinearGradient(
                 gradient: Gradient(stops: [
                     .init(color: .blue.opacity(1), location: 0),   // Blue
@@ -54,74 +111,120 @@ struct ContentView: View {
                 endPoint: .bottom
             )
             .edgesIgnoringSafeArea(.all)
+            .foregroundStyle(.white)
             
-            VStack(alignment: .center, spacing: 60) {
-                
-                VStack {
-                    Text(selectedLocation)
-                        .font(.system(size: 36, weight: .semibold))
-                        .padding()
-                    
-                    VStack {
-                        Image(systemName: selectedIcon)
-                            .renderingMode(.original)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 180, height: 180)
-                        
-                        HStack {
-                            Text(selectedTemp)
-                                .font(.system(size: 80, weight: .medium))
+            // App Main
+            ScrollView {
+                if !isLandscape {
+                    // Portrait view
+                    VStack(alignment: .center, spacing: 60) {
+                        VStack {
+                            Text(selectedLocation)
+                                .font(.system(size: 36, weight: .semibold))
+                                .padding()
                             
-                            VStack (alignment: .leading, spacing: 2) {
-                                Text(isToday ? "Today" : "\(selectedDate)")
-                                    .font(.system(size: 15, weight: .none))
-                                Text(selectedDay)
-                                    .font(.system(size: 15, weight: .none))
+                            VStack {
+                                Image(systemName: selectedIcon)
+                                    .renderingMode(.original)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 180, height: 180)
+                                
+                                HStack {
+                                    Text(selectedTemp)
+                                        .font(.system(size: 80, weight: .medium))
+                                    
+                                    VStack (alignment: .leading, spacing: 2) {
+                                        Text(isToday ? "Today" : "\(selectedDate)")
+                                            .font(.system(size: 15, weight: .none))
+                                        Text(selectedDay)
+                                            .font(.system(size: 15, weight: .none))
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-                .padding(.bottom, 20)
-                
-                
-                HStack(spacing: 12) {
-                    ForEach(weeklyForecast, id: \.0) { forecast in
-                        ForecastView(day: forecast.0, icon: forecast.1, temp: forecast.2)
-                            .onTapGesture {
-                                selectedDay = forecast.0
-                                selectedIcon = forecast.1
-                                selectedTemp = forecast.2
-                                selectedDate = forecast.4
-                                checkIfToday()
+                        .padding(.bottom, 20)
+                        
+                        HStack(spacing: 12) {
+                            ForEach(weeklyForecast, id: \.0) { forecast in
+                                WeatherView(day: forecast.0, icon: forecast.1, temp: forecast.2)
+                                    .onTapGesture {
+                                        selectedDay = forecast.0
+                                        selectedIcon = forecast.1
+                                        selectedTemp = forecast.2
+                                        selectedDate = forecast.4
+                                        checkIfToday()
+                                    }
+                                    .onAppear {
+                                        print("\(forecast.0) Forecast Appeared")
+                                    }
                             }
-                            .onAppear {
-                                print("\(forecast.0) Forecast Appeared")
-                            }
+                        }
+                        .padding(.horizontal)
                     }
-                }
-                .padding(.horizontal)
-                .isHidden(isLandscape ? true : false, remove: isLandscape ? true : false)
-                
-                // News Button
-                Button {
-                    print("News Button Pressed")
-                    // Handle news button press, e.g., navigate to a news page or fetch news
-                } label: {
-                    Text("Latest News")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 340, height: 10)
+                    
+                } else {
+                    // Landscape view
+                    HStack(spacing: 20) {
+                        // Left Side: Weather Icon, Location, and Temperature
+                        VStack(alignment: .leading, spacing: 20) {
+                            VStack(alignment: .leading) {
+                                Text("New York, NY")
+                                    .font(.system(size: 36, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                Text(selectedDate)
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(.white.opacity(0.8))
+                            }
+
+                            Image(systemName: selectedIcon)
+                                .renderingMode(.original)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: 180, maxHeight: 180)
+
+                            Text(selectedTemp)
+                                .font(.system(size: 80, weight: .medium))
+                                .foregroundStyle(.white)
+                        }
                         .padding()
-                        .background(Color.white.opacity(0.2))
-                        .cornerRadius(15)
+                        
+                        // Right Side: Weekly Forecast
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(weeklyForecast, id: \.0) { forecast in
+                                HStack(spacing: 10) {
+                                    Text(forecast.0) // Day
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundStyle(.white)
+
+                                    Spacer()
+
+                                    Image(systemName: forecast.1) // Icon
+                                        .resizable()
+                                        .frame(width: 20, height: 20)
+                                        .foregroundStyle(.white)
+
+                                    Text(forecast.2) // Temperature
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(.white)
+                                }
+                                .padding(.vertical, 5)
+                                .onTapGesture {
+                                    // Update the selected day's details
+                                    selectedDay = forecast.0
+                                    selectedIcon = forecast.1
+                                    selectedTemp = forecast.2
+                                    selectedDate = forecast.3
+                                }
+                            }
+                        }
+                        .padding()
+
+                    }
                 }
-                .padding(.top, 10)
-                
-                Spacer()
             }
-            .foregroundStyle(.white)
         }
+        .foregroundStyle(.white)
     }
     
     private func checkIfToday() {
@@ -130,9 +233,9 @@ struct ContentView: View {
         let formattedToday = formatter.string(from: todayDate)
         isToday = (formattedToday == selectedDate)
     }
-    
 }
 
 #Preview {
     ContentView()
 }
+
