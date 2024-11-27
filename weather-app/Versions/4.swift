@@ -1,14 +1,15 @@
 import SwiftUI
 import SwiftData
 
+// Extension to provide hidden functionality
 extension View {
-    func myhidden(_ shouldHide: Bool) -> some View {
-        opacity(shouldHide ? 0 : 1)
+    func hidden(_ shouldHide: Bool) -> some View {
+        self.opacity(shouldHide ? 0 : 1) // Hides or shows the view based on the condition
     }
     
-    @ViewBuilder func myIsHidden(_ myHidden: Bool, myRemove: Bool = false) -> some View {
-        if myHidden {
-            if !myRemove {
+    @ViewBuilder func isHidden(_ hidden: Bool, remove: Bool = false) -> some View {
+        if hidden {
+            if !remove {
                 self.hidden()
             }
         } else {
@@ -17,7 +18,8 @@ extension View {
     }
 }
 
-struct DailyWeatherView: View {
+// WeatherView for displaying daily forecast
+struct WeatherView: View {
     let day: String
     let icon: String
     let temp: String
@@ -38,42 +40,8 @@ struct DailyWeatherView: View {
     }
 }
 
-//struct AdaptiveStack<Content: View>: View {
-//    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-//    let content: () -> Content
-//    let defaultOrientation: Orientation
-//
-//    enum Orientation {
-//        case vertical
-//        case horizontal
-//    }
-//
-//    init(
-//        defaultOrientation: Orientation = .vertical,
-//        @ViewBuilder content: @escaping () -> Content
-//    ) {
-//        self.defaultOrientation = defaultOrientation
-//        self.content = content
-//    }
-//
-//    var body: some View {
-//        Group {
-//            if horizontalSizeClass == .compact {
-//                // When compact (portrait), use the default orientation
-//                defaultOrientation == .vertical ?
-//                    AnyView(VStack(alignment: .center, spacing: 60) { content() }) :
-//                    AnyView(HStack(alignment: .center, spacing: 60) { content() })
-//            } else {
-//                // When regular (landscape), use the opposite of default
-//                defaultOrientation == .vertical ?
-//                    AnyView(HStack(alignment: .center, spacing: 60) { content() }) :
-//                    AnyView(VStack(alignment: .center, spacing: 60) { content() })
-//            }
-//        }
-//    }
-//}
-
-struct ResView: View {
+// Main ContentView
+struct FiveView: View {
     let weeklyForecast = [
         ("Monday", "cloud.snow.fill", "-10°", "New York, NY", "Nov 25, 2024"),
         ("Tuesday", "snow", "-11°", "New York, NY", "Nov 26, 2024"),
@@ -113,7 +81,7 @@ struct ResView: View {
             .edgesIgnoringSafeArea(.all)
             .foregroundStyle(.white)
             
-            // App Main
+            // Main App Content
             ScrollView {
                 if !isLandscape {
                     // Portrait view
@@ -142,18 +110,18 @@ struct ResView: View {
                                     }
                                 }
                             }
-                        }
+                            }
                         .padding(.bottom, 20)
                         
-                        HStack(spacing: 12) {
+                        HStack(spacing: 20) {
                             ForEach(weeklyForecast, id: \.0) { forecast in
-                                DailyWeatherView(day: forecast.0, icon: forecast.1, temp: forecast.2)
+                                WeatherView(day: forecast.0, icon: forecast.1, temp: forecast.2)
                                     .onTapGesture {
                                         selectedDay = forecast.0
                                         selectedIcon = forecast.1
                                         selectedTemp = forecast.2
                                         selectedDate = forecast.4
-                                        checkIfToday()
+                                        checkIfToday() // Check if the selected date is today
                                     }
                                     .onAppear {
                                         print("\(forecast.0) Forecast Appeared")
@@ -227,15 +195,15 @@ struct ResView: View {
         .foregroundStyle(.white)
     }
     
+    // Function to check if the selected date is today's date
     private func checkIfToday() {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy" // Shortened month format
-        let formattedToday = formatter.string(from: todayDate)
-        isToday = (formattedToday == selectedDate)
+        formatter.dateFormat = "MMM d, yyyy" // Date format to match
+        let formattedToday = formatter.string(from: todayDate) // Format today's date as string
+        isToday = (formattedToday == selectedDate) // Compare today's date with selected date
     }
 }
 
 #Preview {
-    ResView()
+    FiveView()
 }
-
