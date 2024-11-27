@@ -2,8 +2,14 @@ import SwiftUI
 import Combine
 import Foundation
 
+struct WeatherHour {
+    var time: String
+    var temperature: Double
+}
+
 struct ContentView: View {
     @StateObject private var viewModel = WeatherViewModel()
+    @State private var todaysWeatherData: [WeatherHour] = []
     
     var body: some View {
         ZStack {
@@ -16,7 +22,58 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            print("Main View Appeared")
             viewModel.fetchWeatherData()
+        }
+    }
+    
+    private func logWeatherData() {
+        if let weatherData = viewModel.weatherData {
+            print("Weather Data Loaded: \(weatherData)")
+        } else {
+            print("Weather Data is nil or still loading.")
+        }
+    }
+    
+    private func isCurrentHour(hour: Int) -> Bool {
+        let currentTime = Date()
+        let calendar = Calendar.current
+        let currentHour = calendar.component(.hour, from: currentTime)
+        return currentHour == hour
+    }
+    
+    private func formatHour(for num: Int) -> String {
+        // Calculate hour and suffix for the given number
+        let hour = num % 12
+        let suffix = num < 12 ? "AM" : "PM"
+
+        // Get the current time components
+        let currentTime = Date()
+        let calendar = Calendar.current
+        let currentHour = calendar.component(.hour, from: currentTime)
+        let currentSuffix = currentHour < 12 ? "AM" : "PM"
+
+        // Compare the current hour and suffix with the given number
+        let currentFormattedHour = currentHour % 12 == 0 ? 12 : currentHour % 12
+        if currentFormattedHour == (hour == 0 ? 12 : hour) && currentSuffix == suffix {
+            return "Now"
+        }
+
+        // Return the formatted hour and suffix if no match
+        return "\(hour == 0 ? 12 : hour) \(suffix)"
+    }
+
+    
+    private func getWeatherIcon(for temperature: Double) -> String {
+        switch temperature {
+        case ..<0:
+            return "snowflake" // Below 0°C: Snow
+        case 0..<20:
+            return "cloud.sleet.fill" // 0°C to 10°C: Sleet
+        case 20..<30:
+            return "cloud.sun.fill" // 20°C to 30°C: Cloudy/Sunny
+        default:
+            return "sun.max.fill" // Above 30°C: Sunny
         }
     }
     
@@ -54,6 +111,7 @@ struct ContentView: View {
         }
     }
     
+    
     private var weatherContentView: some View {
         ZStack {
             Image("rain")
@@ -78,7 +136,7 @@ struct ContentView: View {
                         Text("Snow")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(.white.opacity(1))
-       
+                        
                         HStack {
                             Text("H:18°")
                                 .font(.system(size: 18,weight: .regular))
@@ -98,6 +156,36 @@ struct ContentView: View {
                     Divider().background(Color.white).padding(.trailing, 16)
                     
                     // Map
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            if let weatherData = viewModel.weatherData {
+                                ForEach(weatherData.hourly.time.prefix(24).indices, id: \.self) { index in
+                                    VStack(spacing: 10) {
+                                        Text("\(formatHour(for: (Int(weatherData.hourly.time[index].split(separator: "T").last!.split(separator: ":").first!)!)))")
+                                            .font(.system(size: 14, weight: .regular))
+                                            .foregroundColor(.white)
+                                        
+                                        // Weather Icon
+                                        Image(systemName: getWeatherIcon(for: weatherData.hourly.temperature_2m[index]))
+                                            .font(.system(size: 30))
+                                            .foregroundColor(.white)
+                                        
+                                        // Temperature
+                                        Text("\(Int(weatherData.hourly.temperature_2m[index]))°")
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(.white)
+                                    }
+                                    .padding(.horizontal, 2)
+                                    
+                                }
+                            } else {
+                                Text("Loading forecast...")
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    
                 }
                 .padding(.top,  16)
                 .padding(.horizontal, 16)
@@ -107,6 +195,7 @@ struct ContentView: View {
                 .cornerRadius(12)
                 .padding(.horizontal)
                 .foregroundStyle(.white.opacity(0.8))
+                
                 
                 // 10 Days Forecast
                 VStack(alignment: .leading) {
@@ -119,20 +208,22 @@ struct ContentView: View {
                     }
                     Divider().background(Color.white).padding(.trailing, 16)
                     
-                    ScrollView {
-                        if let weatherData = viewModel.weatherData {
-                            ForEach(weatherData.hourly.time.indices, id: \.self) { index in
-                                HStack {
-                                    Text(weatherData.hourly.time[index])
-                                        .foregroundColor(.white)
-                                    Spacer()
-                                    Text("\(Int(weatherData.hourly.temperature_2m[index]))°C")
-                                        .foregroundColor(.white)
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 10) {
+                            if let weatherData = viewModel.weatherData {
+                                ForEach(weatherData.hourly.time.indices, id: \.self) { index in
+                                    HStack {
+                                        Text(weatherData.hourly.time[index])
+                                            .foregroundColor(.white)
+                                        Spacer()
+                                        Text("\(Int(weatherData.hourly.temperature_2m[index]))°C")
+                                            .foregroundColor(.white)
+                                    }
                                 }
+                            }else {
+                                Text("Loading forecast...")
+                                    .foregroundStyle(.white)
                             }
-                        }else {
-                            Text("Loading forecast...")
-                                .foregroundStyle(.white)
                         }
                     }
                     
@@ -151,6 +242,10 @@ struct ContentView: View {
             .padding(.bottom, 64)
             .foregroundStyle(.white.opacity(1))
             .background(.black.opacity(0.2))
+            .onAppear {
+                logWeatherData()
+                print("Second Appear")
+            }
         }
     }
 }

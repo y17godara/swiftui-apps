@@ -33,7 +33,7 @@ class NetworkManager: NetworkManagerProtocol {
         guard let url = URL(string: urlString) else {
             return Fail(error: NetworkError.invalidURL).eraseToAnyPublisher()
         }
-        
+        // print("Requesting data from \(url.absoluteString) : \(Date())")
         return URLSession.shared.dataTaskPublisher(for: url)
             .mapError { NetworkError.requestFailed($0) }
             .map { $0.data }
