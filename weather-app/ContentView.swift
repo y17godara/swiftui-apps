@@ -7,6 +7,14 @@ struct WeatherHour {
     var temperature: Double
 }
 
+struct DailyWeather: Identifiable {
+    let id = UUID()
+    let date: String
+    let high: Double
+    let low: Double
+    let icon: String
+}
+
 struct ContentView: View {
     @StateObject private var viewModel = WeatherViewModel()
     @State private var todaysWeatherData: [WeatherHour] = []
@@ -46,23 +54,23 @@ struct ContentView: View {
         // Calculate hour and suffix for the given number
         let hour = num % 12
         let suffix = num < 12 ? "AM" : "PM"
-
+        
         // Get the current time components
         let currentTime = Date()
         let calendar = Calendar.current
         let currentHour = calendar.component(.hour, from: currentTime)
         let currentSuffix = currentHour < 12 ? "AM" : "PM"
-
+        
         // Compare the current hour and suffix with the given number
         let currentFormattedHour = currentHour % 12 == 0 ? 12 : currentHour % 12
         if currentFormattedHour == (hour == 0 ? 12 : hour) && currentSuffix == suffix {
             return "Now"
         }
-
+        
         // Return the formatted hour and suffix if no match
         return "\(hour == 0 ? 12 : hour) \(suffix)"
     }
-
+    
     
     private func getWeatherIcon(for temperature: Double) -> String {
         switch temperature {
@@ -75,6 +83,43 @@ struct ContentView: View {
         default:
             return "sun.max.fill" // Above 30°C: Sunny
         }
+    }
+    
+    private func groupByDay(_ weatherData: WeatherResponse) -> [DailyWeather] {
+        var dailyWeather: [DailyWeather] = []
+        
+        let grouped = Dictionary(grouping: weatherData.hourly.time.indices, by: { index in
+            weatherData.hourly.time[index].split(separator: "T")[0]
+        })
+        
+        for (date, indices) in grouped {
+            let temps = indices.map { weatherData.hourly.temperature_2m[$0] }
+            let high = temps.max() ?? 0
+            let low = temps.min() ?? 0
+            let avgTemp = temps.reduce(0, +) / Double(temps.count)
+            let icon = getWeatherIcon(for: avgTemp) // Adjust icon selection
+            
+            dailyWeather.append(DailyWeather(date: String(date), high: high, low: low, icon: icon))
+        }
+        
+        return dailyWeather
+    }
+    
+    private func getTodayWeather(from weatherData: WeatherResponse) -> (temperature: Double, high: Double, low: Double) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let todayDate = formatter.string(from: Date())
+        
+        let todayIndices = weatherData.hourly.time.indices.filter {
+            weatherData.hourly.time[$0].contains(todayDate)
+        }
+        
+        let temps = todayIndices.map { weatherData.hourly.temperature_2m[$0] }
+        let avgTemp = temps.reduce(0, +) / Double(temps.count)
+        let high = temps.max() ?? 0
+        let low = temps.min() ?? 0
+        
+        return (temperature: avgTemp, high: high, low: low)
     }
     
     private var loadingView: some View {
@@ -122,30 +167,37 @@ struct ContentView: View {
                 .background(.black.opacity(1))
             
             VStack(spacing: 10) {
-                
-                //                    Profile
-                VStack(alignment: .center, spacing: 0) {
-                    Text("London")
-                        .font(.system(size: 35, weight: .regular))
-                        .foregroundStyle(.white.opacity(1))
-                    Text("18°")
-                        .font(.system(size: 110, weight: .light))
-                        .foregroundStyle(.white.opacity(1))
+                if let weatherData = viewModel.weatherData {
+                    let todayWeather = getTodayWeather(from: weatherData)
                     
-                    VStack(spacing: 10) {
-                        Text("Snow")
-                            .font(.system(size: 18, weight: .medium))
+                    //                    Profile
+                    VStack(alignment: .center, spacing: 0) {
+                        Text("New Delhi")
+                            .font(.system(size: 35, weight: .regular))
+                            .foregroundStyle(.white.opacity(1))
+                        Text("\(Int(todayWeather.temperature))°")
+                            .font(.system(size: 110, weight: .light))
                             .foregroundStyle(.white.opacity(1))
                         
-                        HStack {
-                            Text("H:18°")
-                                .font(.system(size: 18,weight: .regular))
+                        VStack(spacing: 10) {
+                            Text(todayWeather.temperature < 10 ? "Cold" : "Mild")
+                                .font(.system(size: 18, weight: .medium))
                                 .foregroundStyle(.white.opacity(1))
-                            Text("L:11°")
-                                .font(.system(size: 18, weight: .regular))
-                                .foregroundStyle(.white.opacity(1))
+                            
+                            HStack {
+                                Text("H:\(Int(todayWeather.high))°")
+                                    .font(.system(size: 18, weight: .regular))
+                                    .foregroundStyle(.white.opacity(1))
+                                Text("L:\(Int(todayWeather.low))°")
+                                    .font(.system(size: 18, weight: .regular))
+                                    .foregroundStyle(.white.opacity(1))
+                            }
                         }
                     }
+                } else {
+                    Text("Loading...")
+                        .font(.system(size: 35, weight: .regular))
+                        .foregroundStyle(.white.opacity(1))
                 }
                 
                 // Today Weather Condition
@@ -183,7 +235,6 @@ struct ContentView: View {
                                     .foregroundStyle(.white)
                             }
                         }
-                        .padding(.horizontal)
                     }
                     
                 }
@@ -203,7 +254,7 @@ struct ContentView: View {
                         Image(systemName: "calendar")
                             .foregroundStyle(.white.opacity(0.8))
                             .aspectRatio(contentMode: .fit)
-                        Text("10-Day Forecast".uppercased(with: .autoupdatingCurrent))
+                        Text("7-Day Forecast".uppercased(with: .autoupdatingCurrent))
                             .font(.system(size: 15, weight: .medium))
                     }
                     Divider().background(Color.white).padding(.trailing, 16)
@@ -211,13 +262,36 @@ struct ContentView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 10) {
                             if let weatherData = viewModel.weatherData {
-                                ForEach(weatherData.hourly.time.indices, id: \.self) { index in
+                                let groupedData = groupByDay(weatherData).sorted { lhs, rhs in
+                                    let formatter = DateFormatter()
+                                    formatter.dateFormat = "yyyy-MM-dd"
+                                    guard let lhsDate = formatter.date(from: lhs.date),
+                                          let rhsDate = formatter.date(from: rhs.date) else {
+                                        return false
+                                    }
+                                    return lhsDate < rhsDate
+                                }
+                                ForEach(groupedData, id: \.date) { day in
                                     HStack {
-                                        Text(weatherData.hourly.time[index])
-                                            .foregroundColor(.white)
+                                        HStack(spacing: 20) {
+                                            Text(day.date)
+                                                .foregroundColor(.white)
+                                                .font(.system(size: 14, weight: .regular))
+         
+                                            Image(systemName: day.icon)
+                                                .font(.system(size: 20))
+                                                .foregroundColor(.white)
+                                        }
+                                        
                                         Spacer()
-                                        Text("\(Int(weatherData.hourly.temperature_2m[index]))°C")
-                                            .foregroundColor(.white)
+                                        
+                                        HStack(spacing: 20) {
+                                            Text("H: \(Int(day.high))°")
+                                                .foregroundColor(.white)
+                                            
+                                            Text("L: \(Int(day.low))°")
+                                                .foregroundColor(.white.opacity(0.7))
+                                        }
                                     }
                                 }
                             }else {
