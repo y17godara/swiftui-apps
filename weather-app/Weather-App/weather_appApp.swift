@@ -12,7 +12,7 @@ import SwiftData
 struct weather_appApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            Text("Hello, World!")
         }
     }
 }
