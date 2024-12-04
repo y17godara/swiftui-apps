@@ -22,25 +22,7 @@ struct LoadingScreen: View {
                 
                 Spacer()
                 
-                VStack(spacing: 10) {
-                    Button(action: {
-                        print("Get Started Button Tapped")
-                    }) {
-                        Text("Get Started")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(width: 300, height: 50)
-                            .background(Color.teal)
-                            .cornerRadius(10)
-                    }
-                    
-                    Text("Already have an account? Login")
-                        .font(.system(size: 16, weight: .regular, design: .serif))
-                        .foregroundColor(.gray)
-                        .padding(6)
-                }
-                .padding(.bottom, 50)
+                GetStartedActions()
             }
             .background(.white)
             .frame(maxHeight: .infinity)
@@ -48,6 +30,7 @@ struct LoadingScreen: View {
         .edgesIgnoringSafeArea(.all) // Make ZStack ignore the safe area
         .ignoresSafeArea() // Make the ZStack background cover the whole screen
     }
+    
 }
 
 // Preview for the Loading Screen
@@ -154,5 +137,29 @@ struct TopImagesGrid: View {
             .padding(.top, 20)
         }
         .padding(.horizontal)
+    }
+}
+
+struct GetStartedActions: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Button(action: {
+                print("Get Started Button Tapped")
+            }) {
+                Text("Get Started")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(width: 200, height: 50)
+                    .background(Color.teal)
+                    .cornerRadius(10)
+            }
+            
+            Text("Already have an account? Login")
+                .font(.system(size: 16, weight: .regular, design: .serif))
+                .foregroundColor(.gray)
+                .padding(6)
+        }
+        .padding(.bottom, 50)
     }
 }

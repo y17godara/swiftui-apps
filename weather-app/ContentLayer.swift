@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ContentLayer: View {
     var body: some View {
-        Text("Hello, World!")
+        LoadingScreen()
     }
 }
 
