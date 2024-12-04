@@ -2,6 +2,8 @@ import SwiftUI
 
 struct LoadingScreen: View {
     var body: some View {
+        @State var isLocked: Bool = false
+        
         ZStack {
             VStack(alignment: .center, spacing: 40) {
                 TopImagesGrid()
@@ -17,12 +19,12 @@ struct LoadingScreen: View {
                         .font(.system(size: 18, weight: .regular, design: .serif))
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
-
+                    
                 }
                 
                 Spacer()
                 
-                GetStartedActions()
+                GetStartedActions(isLocked: $isLocked)
             }
             .background(.white)
             .frame(maxHeight: .infinity)
@@ -141,6 +143,13 @@ struct TopImagesGrid: View {
 }
 
 struct GetStartedActions: View {
+    //    let maxWidth: CGFloat
+    private let maxWidth: CGFloat = UIScreen.main.bounds.width
+    
+    private let minWidth = CGFloat(50)
+    @State private var width = CGFloat(50)
+    @Binding var isLocked: Bool
+    
     var body: some View {
         VStack(spacing: 10) {
             Button(action: {
@@ -154,6 +163,62 @@ struct GetStartedActions: View {
                     .background(Color.teal)
                     .cornerRadius(10)
             }
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        if value.translation.width > 0 {
+                            width = min(max(value.translation.width + minWidth, minWidth), maxWidth)
+                        }
+                    }
+            )
+            .animation(.spring(response: 0.5, dampingFraction: 1, blendDuration: 0), value: width)
+            
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    ZStack(alignment: .leading)  {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.teal.opacity(0.4))
+                        
+                        Text("Slide to unlock")
+                            .font(.footnote)
+                            .bold()
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                    }
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.teal)
+                        .frame(width: width)
+                        .overlay(
+                            ZStack {
+                                image(name: "lock", isShown: isLocked)
+                                image(name: "lock.open", isShown: !isLocked)
+                            },
+                            alignment: .trailing
+                        )
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    guard isLocked else { return }
+                                    print("Drag Gesture Changed")
+                                }
+                                .onEnded { value in
+                                    guard isLocked else { return }
+                                    if width < maxWidth {
+                                        width = minWidth
+                                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                                    } else {
+                                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                        withAnimation(.spring().delay(0.5)) {
+                                            isLocked = false
+                                        }
+                                    }
+                                }
+                        )
+                }
+            }
+            .frame(height: 50)
+            .padding()
+            
             
             Text("Already have an account? Login")
                 .font(.system(size: 16, weight: .regular, design: .serif))
@@ -161,5 +226,16 @@ struct GetStartedActions: View {
                 .padding(6)
         }
         .padding(.bottom, 50)
+    }
+    
+    private func image(name: String, isShown: Bool) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 20, weight: .regular, design: .rounded))
+            .foregroundColor(.teal)
+            .frame(width: 42, height: 42)
+            .background(RoundedRectangle(cornerRadius: 14).fill(.white))
+            .padding(4)
+            .opacity(isShown ? 1 : 0)
+            .scaleEffect(isShown ? 1 : 0.01)
     }
 }
