@@ -9,7 +9,9 @@ import SwiftUI
 
 struct WelcomeUIView: View {
     var body: some View {
-        LoadingScreen()
+        LoadingScreen{
+            print("Get Started tapped!")
+        }
     }
 }
 

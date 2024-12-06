@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct LoadingScreen: View {
+    @State private var isLocked: Bool = true // Define state outside the body
+    let onNext: () -> Void
     var body: some View {
-        @State var isLocked: Bool = false
-        
         ZStack {
             VStack(alignment: .center, spacing: 40) {
                 TopImagesGrid()
@@ -19,26 +19,37 @@ struct LoadingScreen: View {
                         .font(.system(size: 18, weight: .regular, design: .serif))
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
-                    
                 }
                 
                 Spacer()
                 
-                GetStartedActions(isLocked: $isLocked)
+                VStack(spacing: 10) {
+                    // Use the extracted SlideToUnlockButton
+                    SlideToUnlockButton(isLocked: $isLocked, onNext: onNext)
+                        .padding(.horizontal, 8)
+                        .frame(maxWidth: 300)
+                    
+                    Text("Already have an account? Login")
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundColor(.gray)
+                        .padding(6)
+                }
+                .padding(.bottom, 50)
             }
             .background(.white)
             .frame(maxHeight: .infinity)
         }
-        .edgesIgnoringSafeArea(.all) // Make ZStack ignore the safe area
-        .ignoresSafeArea() // Make the ZStack background cover the whole screen
+        .edgesIgnoringSafeArea(.all)
+        .ignoresSafeArea()
     }
-    
 }
 
 // Preview for the Loading Screen
 struct LoadingScreen_Previews: PreviewProvider {
     static var previews: some View {
-        LoadingScreen()
+        LoadingScreen{
+            print("Get Started tapped!")
+        }
     }
 }
 
@@ -142,90 +153,65 @@ struct TopImagesGrid: View {
     }
 }
 
-struct GetStartedActions: View {
-    //    let maxWidth: CGFloat
-    private let maxWidth: CGFloat = UIScreen.main.bounds.width
-    
-    private let minWidth = CGFloat(50)
-    @State private var width = CGFloat(50)
+struct SlideToUnlockButton: View {
     @Binding var isLocked: Bool
+    let onNext: () -> Void // Closure to handle the unlock action
+    private let maxWidth: CGFloat = 300
+    private let minWidth: CGFloat = 50
+    
+    @State private var sliderWidth: CGFloat = 50 // Initial width of the slider
     
     var body: some View {
-        VStack(spacing: 10) {
-            Button(action: {
-                print("Get Started Button Tapped")
-            }) {
-                Text("Get Started")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(width: 200, height: 50)
-                    .background(Color.teal)
-                    .cornerRadius(10)
-            }
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        if value.translation.width > 0 {
-                            width = min(max(value.translation.width + minWidth, minWidth), maxWidth)
-                        }
-                    }
-            )
-            .animation(.spring(response: 0.5, dampingFraction: 1, blendDuration: 0), value: width)
-            
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    ZStack(alignment: .leading)  {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.teal.opacity(0.4))
-                        
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.teal.opacity(0.4))
+                    .overlay(
                         Text("Slide to unlock")
                             .font(.footnote)
                             .bold()
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                    }
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.teal)
-                        .frame(width: width)
-                        .overlay(
-                            ZStack {
-                                image(name: "lock", isShown: isLocked)
-                                image(name: "lock.open", isShown: !isLocked)
-                            },
-                            alignment: .trailing
-                        )
-                        .gesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    guard isLocked else { return }
-                                    print("Drag Gesture Changed")
-                                }
-                                .onEnded { value in
-                                    guard isLocked else { return }
-                                    if width < maxWidth {
-                                        width = minWidth
-                                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                                    } else {
-                                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                                        withAnimation(.spring().delay(0.5)) {
-                                            isLocked = false
-                                        }
+                    )
+                
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.teal)
+                    .frame(width: sliderWidth)
+                    .overlay(
+                        ZStack {
+                            image(name: "lock", isShown: isLocked)
+                            image(name: "lock.open", isShown: !isLocked)
+                        },
+                        alignment: .trailing
+                    )
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                guard isLocked else { return }
+                                sliderWidth = min(max(minWidth + value.translation.width, minWidth), maxWidth)
+                            }
+                            .onEnded { _ in
+                                guard isLocked else { return }
+                                if sliderWidth >= maxWidth {
+                                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                    print("Unlocked")
+                                    withAnimation(.spring()) {
+                                        isLocked = false
+                                    }
+                                    onNext() // Call onNext when unlocked
+                                } else {
+                                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                                    withAnimation(.easeOut) {
+                                        sliderWidth = minWidth
+                                        print("Locked")
                                     }
                                 }
-                        )
-                }
+                            }
+                    )
             }
-            .frame(height: 50)
-            .padding()
-            
-            
-            Text("Already have an account? Login")
-                .font(.system(size: 16, weight: .regular, design: .serif))
-                .foregroundColor(.gray)
-                .padding(6)
         }
-        .padding(.bottom, 50)
+        .frame(height: 50)
+        
     }
     
     private func image(name: String, isShown: Bool) -> some View {
